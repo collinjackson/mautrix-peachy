@@ -28,13 +28,21 @@ This is an independent open-source project, not part of the Peachy product.
 - `cmd/mautrix-peachy/`: the `mxmain` binary. `./build.sh` builds Peachy's
   MLS engine (peachy-protocol at peachy-go's `peachy-protocol.commit`), then
   the bridge (`-tags "goolm libsqlite3"`, no libolm needed).
+- `.github/workflows/ci.yml`: on every push, gofmt, vet, the unit tests and
+  the integration test.
 - `.github/workflows/release.yml`: on a `v*` tag, builds macOS arm64 and
   Linux amd64/arm64 binaries and attaches them to the release.
 - `docs/`: the user-facing getting-started pages.
 
 ## Testing without Beeper
 Run a local Synapse with the bridge's registration and drive login over the
-provisioning API (`/_matrix/provision/v3/login/...`).
+provisioning API (`/_matrix/provision/v3/login/...`). `scripts/integration.sh`
+does that end to end with no real accounts: Synapse from a venv in
+`target/synapse-venv`, the bridge built against the test-issuer engine
+(`target/mautrix-peachy-test`, never shipped), and `integration/`
+(`-tags "integration testissuer"`), which runs peachy-go's fake server
+(`peachytest`), logs the bridge in and plays the other people with peachy-go
+Devices.
 
 ## Conventions
 - `gofmt`, `go vet -tags "goolm libsqlite3" ./...`, `go test -tags "goolm
