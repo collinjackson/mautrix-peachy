@@ -1,0 +1,12 @@
+# The Peachy API.
+server: https://api.pchy.app
+# Where each login's device keys and conversation state live, one folder per
+# login. It holds the keys to your messages: keep it private and backed up.
+data_dir: ./peachy-data
+# What Peachy's Devices list calls the bridge. Changing it renames only
+# logins made afterwards.
+device_name: Beeper
+# Read receipts follow your Peachy setting (Settings → Privacy). Set this to
+# true or false to override it for the bridge. (Delivered marks are always
+# sent, as Peachy's own apps send them.)
+read_receipts: null

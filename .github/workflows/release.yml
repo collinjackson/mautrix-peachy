@@ -1,0 +1,63 @@
+name: Release
+
+# On a version tag (v0.1.0, ...): build the bridge for each platform and
+# attach the binaries, with their SHA-256 sums, to the GitHub release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: macos-15
+            asset: mautrix-peachy-macos-arm64
+          - runner: ubuntu-24.04
+            asset: mautrix-peachy-linux-amd64
+          - runner: ubuntu-24.04-arm
+            asset: mautrix-peachy-linux-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # Rust: rustup on the runner installs the toolchain peachy-protocol
+      # pins (mls/rust-toolchain.toml) on first use.
+      - name: Build
+        run: ./build.sh -trimpath -ldflags "-s -w"
+      - name: Test
+        run: CGO_LDFLAGS="-L$PWD/target/lib" go test -tags "goolm libsqlite3" ./...
+      - name: Check the binary runs
+        run: ./mautrix-peachy --version
+      - run: mv mautrix-peachy ${{ matrix.asset }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum mautrix-peachy-* > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" --generate-notes \
+            mautrix-peachy-* SHA256SUMS

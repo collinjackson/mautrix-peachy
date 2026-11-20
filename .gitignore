@@ -1,0 +1,7 @@
+/mautrix-peachy
+*.db
+config.yaml
+registration.yaml
+logs/
+target/
+.claude/

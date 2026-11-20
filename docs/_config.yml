@@ -1,0 +1,8 @@
+# GitHub Pages (Jekyll), serving this docs/ folder.
+title: Peachy for Beeper
+description: Read and answer your Peachy chats in Beeper.
+theme: minima
+plugins:
+  - jekyll-relative-links
+relative_links:
+  enabled: true
