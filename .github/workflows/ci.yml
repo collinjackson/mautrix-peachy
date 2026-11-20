@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # build.sh clones peachy-protocol at the commit peachy-go names;
+      # rustup installs the toolchain its rust-toolchain.toml pins.
+      - name: Cache the MLS engine build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.rustup/toolchains
+            target/peachy-protocol
+          key: engine-${{ runner.os }}-${{ hashFiles('go.sum') }}-test-issuer
+
+      - name: Cache Synapse
+        uses: actions/cache@v4
+        with:
+          path: target/synapse-venv
+          key: synapse-${{ runner.os }}-py3.12-${{ hashFiles('scripts/integration.sh') }}
+
+      # The test-issuer engine is for tests only; the release workflow
+      # builds without it.
+      - name: Build
+        run: PEACHY_FEATURES=peachy-mls-cabi/test-issuer OUT=target/mautrix-peachy-test ./build.sh
+
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then echo "gofmt needed:"; echo "$out"; exit 1; fi
+
+      - name: go vet
+        env:
+          CGO_LDFLAGS: -L${{ github.workspace }}/target/lib
+        run: |
+          go vet -tags "goolm libsqlite3" ./...
+          go vet -tags "integration testissuer" ./integration/
+
+      - name: Unit tests
+        env:
+          CGO_LDFLAGS: -L${{ github.workspace }}/target/lib
+        run: go test -tags "goolm libsqlite3" ./...
+
+      - name: Integration test
+        env:
+          NO_BUILD: "1"
+          PYTHON: python3.12
+        run: scripts/integration.sh -v
+
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-logs
+          path: |
+            target/integration/bridge.log
+            target/integration/synapse/homeserver.log
+          if-no-files-found: ignore
