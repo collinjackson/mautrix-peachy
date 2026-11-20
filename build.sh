@@ -6,6 +6,10 @@
 # commit peachy-go names in its peachy-protocol.commit: $PEACHY_PROTOCOL when
 # set, else a clone this makes in target/peachy-protocol.
 #
+# PEACHY_FEATURES adds cargo features to the engine (the integration test's
+# peachy-mls-cabi/test-issuer; never ship that engine), and OUT names the
+# binary (mautrix-peachy by default).
+#
 # On macOS the linker warns that some Rust objects were built for a newer
 # macOS than Go links for; the warnings are harmless.
 set -e
@@ -25,7 +29,7 @@ if [ "$(git -C "$protocol" rev-parse HEAD 2>/dev/null)" != "$commit" ]; then
 	echo "build.sh: $protocol isn't at $commit, the commit peachy-go is built for" >&2
 	exit 1
 fi
-(cd "$protocol/mls" && cargo build --release -p peachy-mls-cabi)
+(cd "$protocol/mls" && cargo build --release -p peachy-mls-cabi ${PEACHY_FEATURES:+--features "$PEACHY_FEATURES"})
 
 # target/lib holds the engine's static library twice: as itself, which
 # peachy-go links (-lpeachy_mls_cabi; never the .dylib beside it), and as
@@ -35,15 +39,16 @@ fi
 # encryption then fails ("no such function: sqlcipher_export"). With the
 # libsqlite3 tag it links -lsqlite3 instead. Unkeyed, SQLCipher is a plain
 # SQLite, so the bridge database is unchanged.
+out=${OUT:-mautrix-peachy}
 engine="$(cd "$protocol/mls/target/release" && pwd)/libpeachy_mls_cabi.a"
 mkdir -p target/lib
 ln -sf "$engine" target/lib/libpeachy_mls_cabi.a
 ln -sf "$engine" target/lib/libsqlite3.a
 CGO_LDFLAGS="-L$(pwd)/target/lib ${CGO_LDFLAGS:-}" \
-	go build -tags "goolm libsqlite3" -o mautrix-peachy "$@" ./cmd/mautrix-peachy
+	go build -tags "goolm libsqlite3" -o "$out" "$@" ./cmd/mautrix-peachy
 # Refuse a binary with a second SQLite or none of SQLCipher.
 # (The SQL function's name, which stays in a stripped binary.)
-if ! grep -q sqlcipher_export mautrix-peachy; then
-	echo "build.sh: no SQLCipher in mautrix-peachy (a second SQLite won the link)" >&2
+if ! grep -q sqlcipher_export "$out"; then
+	echo "build.sh: no SQLCipher in $out (a second SQLite won the link)" >&2
 	exit 1
 fi
