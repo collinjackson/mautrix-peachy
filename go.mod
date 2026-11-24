@@ -16,7 +16,7 @@ require (
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/coder/websocket v1.8.15 // indirect
-	github.com/collinjackson/peachy-go v0.1.1-0.20261120170215-8427505fdbf4
+	github.com/collinjackson/peachy-go v0.1.1-0.20261124170909-ce8ef055fd10
 	github.com/coreos/go-systemd/v22 v22.7.0 // indirect
 	github.com/lib/pq v1.12.3 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect

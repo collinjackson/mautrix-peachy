@@ -52,6 +52,7 @@ const (
 	alicePhone = "+15555550100" // the bridge's Peachy account
 	bobPhone   = "+15555550101"
 	carolPhone = "+15555550102"
+	botPhone   = "+15555550199" // a bot's account; the fake signs bots in by phone
 )
 
 func TestBridge(t *testing.T) {
@@ -262,6 +263,42 @@ func TestBridge(t *testing.T) {
 			t.Fatal(err)
 		}
 		mx.waitMember(t, groom, carolGhost, event.MembershipLeave, "Carol leaving")
+	})
+
+	// A group that seats a bot (a pdc3 leaf) still bridges: the bot's
+	// messages arrive under a named ghost, and Alice's reach it.
+	t.Run("bot", func(t *testing.T) {
+		// Peachy serves bots' rows only to some clients; the bridge is
+		// served none, and still names the bot.
+		srv.HideBotRows()
+		bot := signInAs(t, ctx, srv, srv.AddBot(botPhone, "Helper", "helper_bot"), botPhone, "Helper")
+		botGhost := ghost(bot.actor)
+		g, err := bob.FoundGroupForTest(ctx, "With a bot", false, []string{aliceActor})
+		if err != nil {
+			t.Fatal(err)
+		}
+		groom := mx.portal(t, g)
+		if err := bob.AddBotForTest(ctx, g, bot.actor); err != nil {
+			t.Fatal(err)
+		}
+		bot.waitEvent(t, "the bot's welcome", func(e peachy.Event) bool {
+			return e.Type == peachy.EventJoined && e.Conversation == g
+		})
+		mx.waitMember(t, groom, botGhost, event.MembershipJoin, "the bot joining")
+		if _, err := bot.SendText(ctx, g, "beep", ""); err != nil {
+			t.Fatal(err)
+		}
+		mx.waitMessage(t, groom, botGhost, "the bot's text", func(c *event.MessageEventContent) bool {
+			return c.Body == "beep"
+		})
+		profile, err := mx.client.GetProfile(ctx, botGhost)
+		if err != nil || profile.DisplayName != "Peachy bot" {
+			t.Fatalf("the bot's ghost: %+v %v", profile, err)
+		}
+		mx.sendText(t, ctx, groom, "thanks", "")
+		bot.waitEvent(t, "Alice's text to the bot", func(e peachy.Event) bool {
+			return e.Type == peachy.EventMessage && e.Conversation == g && e.Sender == aliceActor && e.Text == "thanks"
+		})
 	})
 }
 
@@ -507,7 +544,12 @@ type person struct {
 // then reads its mailbox whenever the server says it moved.
 func signIn(t *testing.T, ctx context.Context, srv *peachytest.Server, phone, name, handle string) person {
 	t.Helper()
-	actor := srv.AddAccount(phone, name, handle)
+	return signInAs(t, ctx, srv, srv.AddAccount(phone, name, handle), phone, name)
+}
+
+// signInAs signs a Device in to an account the test already made (AddBot).
+func signInAs(t *testing.T, ctx context.Context, srv *peachytest.Server, actor, phone, name string) person {
+	t.Helper()
 	dev, err := peachy.Open(srv.URL, t.TempDir(), name+"'s phone")
 	if err != nil {
 		t.Fatal(err)

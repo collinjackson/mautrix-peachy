@@ -441,14 +441,41 @@ func (c *PeachyClient) GetUserInfo(ctx context.Context, ghost *bridgev2.Ghost) (
 		return nil, err
 	}
 	if len(people) != 1 {
+		if c.botLeaf(string(ghost.ID)) {
+			// Peachy serves a bot's row only to some clients (peachy-protocol's
+			// docs/bots.md, Conventions), so a bot seated in one of our chats
+			// may have none: it still needs a name to send under.
+			return c.userInfo(peachy.Person{ID: string(ghost.ID), Name: botName, Bot: true}), nil
+		}
 		return nil, fmt.Errorf("no Peachy user %s", ghost.ID)
 	}
 	return c.userInfo(people[0]), nil
 }
 
+// botName names a bot whose profile Peachy doesn't serve this client.
+const botName = "Peachy bot"
+
+// botLeaf is whether actor holds a bot's leaf (a pdc3) in one of our chats.
+func (c *PeachyClient) botLeaf(actor string) bool {
+	convs, err := c.device.Conversations()
+	if err != nil {
+		return false
+	}
+	for _, conv := range convs {
+		if slices.Contains(conv.Bots, actor) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *PeachyClient) userInfo(p peachy.Person) *bridgev2.UserInfo {
+	if p.Name == "" && p.Bot {
+		p.Name = botName
+	}
 	name := c.settings().NameFor(p.ID, p.Name)
-	info := &bridgev2.UserInfo{Name: &name, Avatar: &bridgev2.Avatar{Remove: true}, Identifiers: []string{}}
+	isBot := p.Bot || c.botLeaf(p.ID)
+	info := &bridgev2.UserInfo{Name: &name, Avatar: &bridgev2.Avatar{Remove: true}, Identifiers: []string{}, IsBot: &isBot}
 	if p.Handle != "" {
 		// Beeper shows this under the person's name.
 		info.Identifiers = []string{"peachy:@" + p.Handle}
