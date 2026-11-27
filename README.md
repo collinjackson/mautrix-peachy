@@ -40,11 +40,21 @@ as your Beeper messages, not as private as Peachy.
 
 ## Running it with Beeper
 
-See [Run the bridge](docs/getting-started/run-the-bridge.md): install bbctl,
-build with `./build.sh`, register with
-`bbctl config --type bridgev2 -o config.yaml sh-peachy`, add the Peachy
-settings and start it. Then send `login` to `@sh-peachybot:beeper.local` and
-approve the bridge from Peachy on your phone.
+The bridge runs on your own computer and connects to your Beeper account
+through **bbctl**, Beeper's tool for self-hosted bridges
+([beeper/bridge-manager](https://github.com/beeper/bridge-manager)).
+[Run the bridge](docs/getting-started/run-the-bridge.md) walks through it
+step by step:
+
+1. Download bbctl 0.15.0 or newer from
+   [its releases](https://github.com/beeper/bridge-manager/releases) (not
+   Homebrew, which is older) and run `bbctl login`.
+2. Build the bridge with `./build.sh`, or download a binary from this
+   repo's [releases](https://github.com/collinjackson/mautrix-peachy/releases).
+3. Register it with `bbctl config --type bridgev2 -o config.yaml sh-peachy`,
+   add the Peachy settings, and start it.
+4. In Beeper, send `login` to `@sh-peachybot:beeper.local` and approve the
+   bridge from Peachy on your phone.
 
 ## What's supported
 
