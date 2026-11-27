@@ -44,6 +44,10 @@ type PeachyClient struct {
 	delivered   map[string]*delivered
 
 	store atomic.Pointer[peachy.Store]
+
+	// A fetch failed and Beeper was told so: the next one that works says
+	// connected again.
+	pollFailed atomic.Bool
 }
 
 var _ bridgev2.NetworkAPI = (*PeachyClient)(nil)
@@ -132,7 +136,11 @@ func (c *PeachyClient) drain(ctx context.Context) {
 				Error:      "peachy-poll-failed",
 				Message:    err.Error(),
 			})
+			c.pollFailed.Store(true)
 			return
+		}
+		if c.pollFailed.Swap(false) {
+			c.login.BridgeState.Send(status.BridgeState{StateEvent: status.StateConnected})
 		}
 		for _, e := range events {
 			c.handle(e)
